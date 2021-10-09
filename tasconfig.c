@@ -27,6 +27,7 @@ int main(int argc, const char *argv[])
    const char *mqttpassword = NULL;
    const char *mqttid = NULL;
    int all = 0;
+   int info = 0;
 
    poptContext optCon;          // context for parsing command-line options
    const struct poptOption optionsTable[] = {
@@ -41,6 +42,7 @@ int main(int argc, const char *argv[])
       { "mqtt-username", 'u', POPT_ARG_STRING, &mqttusername, 0, "MQTT username", "username" },
       { "mqtt-password", 'p', POPT_ARG_STRING, &mqttpassword, 0, "MQTT password", "password" },
       { "mqtt-id", 0, POPT_ARG_STRING, &mqttid, 0, "MQTT id", "id" },
+      { "info", 0, POPT_ARG_NONE, &info, 0, "Show changes", NULL },
       { "all", 0, POPT_ARG_NONE, &all, 0, "All devices", NULL },
       POPT_AUTOHELP { }
    };
@@ -62,6 +64,7 @@ int main(int argc, const char *argv[])
    const char *topic = NULL;    // Current topic / device
    char *foundtopic = NULL;
    char *foundpayload = NULL;
+   int foundpayloadlen = 0;
    int e = mosquitto_lib_init();
    if (e)
       errx(1, "MQTT init failed %s", mosquitto_strerror(e));
@@ -98,10 +101,16 @@ int main(int argc, const char *argv[])
          return;
       if (sqldebug)
          warnx("%s: %.*s", msg->topic, msg->payloadlen, (char *) msg->payload ? : "");
-      // TODO check topic match!
       foundtopic = strdup(msg->topic);
-      // TODO get payload
-
+      if (!foundtopic)
+         errx(1, "malloc");
+      foundpayloadlen = msg->payloadlen;
+      foundpayload = malloc(foundpayloadlen + 1);
+      if (!foundpayload)
+         errx(1, "malloc");
+      if (foundpayloadlen)
+         memcpy(foundpayload, msg->payload, foundpayloadlen);
+      foundpayload[foundpayloadlen] = 0;
    }
    mosquitto_connect_callback_set(mqtt, connect);
    mosquitto_disconnect_callback_set(mqtt, disconnect);
@@ -148,8 +157,27 @@ int main(int argc, const char *argv[])
       free(t);
       if (getstat())
       {
-         warnx("Not responding %s", topic);
-         return;
+         char *alt = sql_colz(res, "_Topic");
+         if (alt && *alt)
+         {
+            warnx("Not responding %s, trying %s", topic, alt);
+            topic = alt;
+            if (asprintf(&t, "cmnd/%s/status", topic) < 0)
+               errx(1, "malloc");
+            int e = mosquitto_publish(mqtt, NULL, t, 0, NULL, 0, 0);
+            if (e)
+               errx(1, "MQTT publish failed %s", mosquitto_strerror(e));
+            free(t);
+            if (getstat())
+            {
+               warnx("Not responding %s", topic);
+               return;
+            }
+         } else
+         {
+            warnx("Not responding %s (and no alternative to try)", topic);
+            return;
+         }
       }
       // Check settings
       for (int n = 0; n < res->field_count; n++)
@@ -167,9 +195,34 @@ int main(int argc, const char *argv[])
                warnx("Not data for %s/%s", topic, res->fields[n].name);
                continue;
             }
-
-
-
+            char match = 0;
+	    const char *v="unknown";
+            j_t j = j_create();
+            const char *je = j_read_mem(j, foundpayload, foundpayloadlen);
+            if (je)
+               warnx("Bad JSON: %s (%s)", foundpayload, je);
+            else
+            {
+               v = j_get(j, res->fields[n].name);
+               if (!v)
+                  warnx("Not found %s", res->fields[n].name);
+               else if (!strcmp(v, res->current_row[n]))
+                  match = 1;
+            }
+            if (!match)
+            {                   // Send
+               if (asprintf(&t, "cmnd/%s/%s", topic, res->fields[n].name) < 0)
+                  errx(1, "malloc");
+               int e = mosquitto_publish(mqtt, NULL, t, strlen(res->current_row[n]), res->current_row[n], 0, 0);
+               if (e)
+                  errx(1, "publish failed %s", mosquitto_strerror(e));
+               free(t);
+               if (getstat())
+                  warnx("No response setting %s to %s on %s", res->fields[n].name, res->current_row[n], topic);
+               else if (info)
+                  warnx("Updated %s to %s on %s (was %s)", res->fields[n].name, res->current_row[n], topic,v);
+            }
+            j_delete(&j);
          }
    }
 
@@ -195,6 +248,8 @@ int main(int argc, const char *argv[])
       }
    }
    // Tidy up
+   free(foundtopic);
+   free(foundpayload);
    mosquitto_destroy(mqtt);
    mosquitto_lib_cleanup();
    sql_close(&sql);
