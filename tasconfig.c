@@ -147,6 +147,7 @@ int main(int argc, const char *argv[])
    void config(SQL_RES * res) { // Configure a devices
       if (sqldebug)
          warnx("Config for %s", topic);
+      else if(info)fprintf(stderr,"Checking %s\n",topic);
       // Check device is on line even...
       char *t = NULL;
       if (asprintf(&t, "cmnd/%s/status", topic) < 0)
@@ -220,7 +221,7 @@ int main(int argc, const char *argv[])
                if (getstat())
                   warnx("No response setting %s to %s on %s", res->fields[n].name, res->current_row[n], topic);
                else if (info)
-                  warnx("Updated %s to %s on %s (was %s)", res->fields[n].name, res->current_row[n], topic,v);
+                  fprintf(stderr, "Updated %s to %s on %s (was %s)\n", res->fields[n].name, res->current_row[n], topic,v);
             }
             j_delete(&j);
          }
