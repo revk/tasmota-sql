@@ -184,6 +184,16 @@ int main(int argc, const char *argv[])
       // Check settings
       const char *name = NULL,
           *value = NULL;
+      const char *findval(j_t j) {      // Get value, including special cases e.g. for rules
+         if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
+         {
+            j_t r = j_find(j, name);
+            if (r)
+               return j_get(r, "Rules");
+         } else
+            return j_get(j, name);
+         return NULL;
+      }
       for (int n = 0; n < res->field_count; n++)
          if ((value = res->current_row[n]) && *(name = res->fields[n].name) != '_')
          {
@@ -207,14 +217,7 @@ int main(int argc, const char *argv[])
                warnx("Bad JSON: %s (%s)", foundpayload, je);
             else
             {
-               v = NULL;
-               if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
-               {
-                  j_t r = j_find(j, name);
-                  if (r)
-                     v = j_get(r, "Rules");
-               } else
-                  v = j_get(j, name);
+               v = findval(j);
                if (!v)
                   warnx("Not found %s in (%s)", name, foundpayload);
                else if (!strcmp(v, value))
@@ -238,14 +241,7 @@ int main(int argc, const char *argv[])
                      warnx("Bad JSON: %s (%s)", foundpayload, je);
                   else
                   {
-                     const char *v2 = NULL;
-                     if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
-                     {
-                        j_t r = j_find(j2, name);
-                        if (r)
-                           v2 = j_get(r, "Rules");
-                     } else
-                        v2 = j_get(j2, name);
+                     const char *v2 = findval(j2);
                      if (!v2)
                         warnx("Not found %s in (%s)", name, topic);
                      else if (strcmp(v2, value))
