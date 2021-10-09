@@ -182,11 +182,13 @@ int main(int argc, const char *argv[])
          }
       }
       // Check settings
+      const char *name = NULL,
+          *value = NULL;
       for (int n = 0; n < res->field_count; n++)
-         if (res->current_row[n] && *res->fields[n].name != '_')
+         if ((value = res->current_row[n]) && *(name = res->fields[n].name) != '_')
          {
             char *t = NULL;
-            if (asprintf(&t, "cmnd/%s/%s", topic, res->fields[n].name) < 0)
+            if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
                errx(1, "malloc");
             int e = mosquitto_publish(mqtt, NULL, t, 0, NULL, 0, 0);
             if (e)
@@ -194,7 +196,7 @@ int main(int argc, const char *argv[])
             free(t);
             if (getstat())
             {
-               warnx("Not data for %s/%s", topic, res->fields[n].name);
+               warnx("Not data for %s/%s", topic, name);
                continue;
             }
             char match = 0;
@@ -205,22 +207,29 @@ int main(int argc, const char *argv[])
                warnx("Bad JSON: %s (%s)", foundpayload, je);
             else
             {
-               v = j_get(j, res->fields[n].name);
+               v = NULL;
+               if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
+               {
+                  j_t r = j_find(j, name);
+                  if (r)
+                     v = j_get(r, "Rules");
+               } else
+                  v = j_get(j, name);
                if (!v)
-                  warnx("Not found %s", res->fields[n].name);
-               else if (!strcmp(v, res->current_row[n]))
+                  warnx("Not found %s in (%s)", name, foundpayload);
+               else if (!strcmp(v, value))
                   match = 1;
             }
             if (!match)
             {                   // Send
-               if (asprintf(&t, "cmnd/%s/%s", topic, res->fields[n].name) < 0)
+               if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
                   errx(1, "malloc");
-               int e = mosquitto_publish(mqtt, NULL, t, strlen(res->current_row[n]), res->current_row[n], 0, 0);
+               int e = mosquitto_publish(mqtt, NULL, t, strlen(value), value, 0, 0);
                if (e)
                   errx(1, "publish failed %s", mosquitto_strerror(e));
                free(t);
                if (getstat())
-                  warnx("No response setting %s to %s on %s", res->fields[n].name, res->current_row[n], topic);
+                  warnx("No response setting %s to %s on %s", name, value, topic);
                else
                {
                   j_t j2 = j_create();
@@ -229,13 +238,34 @@ int main(int argc, const char *argv[])
                      warnx("Bad JSON: %s (%s)", foundpayload, je);
                   else
                   {
-                     const char *v2 = v = j_get(j, res->fields[n].name);
-                     if (!v)
-                        warnx("Not found %s", res->fields[n].name);
-                     else if (strcmp(v, res->current_row[n]))
-                        warnx("Unable to set %s to %s on %s (is %s)", res->fields[n].name, res->current_row[n], topic, v2);
-                     else if (info)
-                        fprintf(stderr, "Updated %s to %s on %s (was %s)\n", res->fields[n].name, res->current_row[n], topic, v);
+                     const char *v2 = NULL;
+                     if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
+                     {
+                        j_t r = j_find(j2, name);
+                        if (r)
+                           v2 = j_get(r, "Rules");
+                     } else
+                        v2 = j_get(j2, name);
+                     if (!v2)
+                        warnx("Not found %s in (%s)", name, topic);
+                     else if (strcmp(v2, value))
+                        warnx("Unable to set %s to %s on %s (is %s)", name, value, topic, v2);
+                     else
+                     {
+                        if (info)
+                           fprintf(stderr, "Updated %s to %s on %s (was %s)\n", name, value, topic, v);
+                        if (!strncmp(name, "Rule", 4) && isdigit(name[4]) && strcmp(value, "0"))
+                        {       // Special case for Rule setting
+                           if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
+                              errx(1, "malloc");
+                           int e = mosquitto_publish(mqtt, NULL, t, 1, "1", 0, 0);
+                           if (e)
+                              errx(1, "publish failed %s", mosquitto_strerror(e));
+                           free(t);
+                           if (getstat())
+                              warnx("Setting %s 1 did not work on %s", name, topic);
+                        }
+                     }
                   }
                   j_delete(&j2);
                }
