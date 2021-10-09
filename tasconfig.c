@@ -145,10 +145,6 @@ int main(int argc, const char *argv[])
    }
 
    void config(SQL_RES * res) { // Configure a devices
-      if (sqldebug)
-         warnx("Config for %s", topic);
-      else if (info)
-         fprintf(stderr, "Checking %s\n", topic);
       // Check device is on line even...
       char *t = NULL;
       if (asprintf(&t, "cmnd/%s/status", topic) < 0)
@@ -181,6 +177,10 @@ int main(int argc, const char *argv[])
             return;
          }
       }
+      if (sqldebug)
+         warnx("Config for %s", topic);
+      else if (info)
+         fprintf(stderr, "Checking %s\n", topic);
       // Check settings
       const char *name = NULL,
           *value = NULL;
