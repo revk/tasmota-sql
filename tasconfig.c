@@ -190,13 +190,23 @@ int main(int argc, const char *argv[])
             j_t r = j_find(j, name);
             if (r)
                return j_get(r, "Rules");
-         } else
-            return j_get(j, name);
-         return NULL;
+            return NULL;
+         }
+         const char *v = j_get(j, name);
+         if (!strncmp(name, "SetOption", 9))
+         {
+            if (!strcmp(v, "ON"))
+               return "1";
+            if (!strcmp(v, "OFF"))
+               return "0";
+         }
+         return v;
       }
       for (int n = 0; n < res->field_count; n++)
          if ((value = res->current_row[n]) && *(name = res->fields[n].name) != '_')
          {
+            if (!*value)
+               value = "0";     // Cannot be actually blank
             char *t = NULL;
             if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
                errx(1, "malloc");
@@ -206,7 +216,7 @@ int main(int argc, const char *argv[])
             free(t);
             if (getstat())
             {
-               warnx("Not data for %s/%s", topic, name);
+               warnx("No data for %s/%s", topic, name);
                continue;
             }
             char match = 0;
@@ -250,6 +260,8 @@ int main(int argc, const char *argv[])
                      {
                         if (info)
                            fprintf(stderr, "Updated %s to %s on %s (was %s)\n", name, value, topic, v);
+                        if (!strcmp(name, "Topic"))
+                           sql_safe_query_free(&sql, sql_printf("UPDATE `%#S` SET `_Topic`=NULL WHERE `Topic`=%#s", sqltable, sql_colz(res, "Topic")));
                         if (!strncmp(name, "Rule", 4) && isdigit(name[4]) && strcmp(value, "0"))
                         {       // Special case for Rule setting
                            if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
