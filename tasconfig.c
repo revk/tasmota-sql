@@ -260,8 +260,6 @@ int main(int argc, const char *argv[])
                      {
                         if (info)
                            fprintf(stderr, "Updated %s to %s on %s (was %s)\n", name, value, topic, v);
-                        if (!strcmp(name, "Topic"))
-                           sql_safe_query_free(&sql, sql_printf("UPDATE `%#S` SET `_Topic`=NULL WHERE `Topic`=%#s", sqltable, sql_colz(res, "Topic")));
                         if (!strncmp(name, "Rule", 4) && isdigit(name[4]) && strcmp(value, "0"))
                         {       // Special case for Rule setting
                            if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
