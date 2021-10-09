@@ -147,7 +147,8 @@ int main(int argc, const char *argv[])
    void config(SQL_RES * res) { // Configure a devices
       if (sqldebug)
          warnx("Config for %s", topic);
-      else if(info)fprintf(stderr,"Checking %s\n",topic);
+      else if (info)
+         fprintf(stderr, "Checking %s\n", topic);
       // Check device is on line even...
       char *t = NULL;
       if (asprintf(&t, "cmnd/%s/status", topic) < 0)
@@ -197,7 +198,7 @@ int main(int argc, const char *argv[])
                continue;
             }
             char match = 0;
-	    const char *v="unknown";
+            const char *v = "unknown";
             j_t j = j_create();
             const char *je = j_read_mem(j, foundpayload, foundpayloadlen);
             if (je)
@@ -220,8 +221,24 @@ int main(int argc, const char *argv[])
                free(t);
                if (getstat())
                   warnx("No response setting %s to %s on %s", res->fields[n].name, res->current_row[n], topic);
-               else if (info)
-                  fprintf(stderr, "Updated %s to %s on %s (was %s)\n", res->fields[n].name, res->current_row[n], topic,v);
+               else
+               {
+                  j_t j2 = j_create();
+                  const char *je = j_read_mem(j2, foundpayload, foundpayloadlen);
+                  if (je)
+                     warnx("Bad JSON: %s (%s)", foundpayload, je);
+                  else
+                  {
+                     const char *v2 = v = j_get(j, res->fields[n].name);
+                     if (!v)
+                        warnx("Not found %s", res->fields[n].name);
+                     else if (strcmp(v, res->current_row[n]))
+                        warnx("Unable to set %s to %s on %s (is %s)", res->fields[n].name, res->current_row[n], topic, v2);
+                     else if (info)
+                        fprintf(stderr, "Updated %s to %s on %s (was %s)\n", res->fields[n].name, res->current_row[n], topic, v);
+                  }
+                  j_delete(&j2);
+               }
             }
             j_delete(&j);
          }
