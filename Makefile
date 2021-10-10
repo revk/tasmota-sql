@@ -1,4 +1,5 @@
 all:	tasconfig
+	mysqldump -d tasmota > tasmota.sql
 
 pull:
 	git pull
