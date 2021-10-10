@@ -304,10 +304,13 @@ int main(int argc, const char *argv[])
             {                   // Send / store
                if (backup)
                {                // Store
-                  if (v && !*v)
-                     v = NULL;
-                  if (v || value)
-                     sql_sprintf(&s, "`%#S`=%#s,", name, v);
+                  if (strncmp(name, "Password", 9) || !v || strcmp(v, "****"))
+                  {
+                     if (v && !*v)
+                        v = NULL;
+                     if (v || value)
+                        sql_sprintf(&s, "`%#S`=%#s,", name, v);
+                  }
                } else
                {                // Correct
                   if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
