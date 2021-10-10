@@ -88,7 +88,7 @@ int main(int argc, const char *argv[])
       e = mosquitto_subscribe(mqtt, NULL, "stat/#", 0);
       if (e)
          errx(1, "MQTT subscribe failed %s", mosquitto_strerror(e));
-      if ( all)
+      if (all)
       {
          e = mosquitto_subscribe(mqtt, NULL, "tele/#", 0);
          if (e)
@@ -273,7 +273,7 @@ int main(int argc, const char *argv[])
       if (backup)
          sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
       for (int n = 0; n < res->field_count; n++)
-         if ((!setting || !strcasecmp(res->fields[n].name, setting)) && ((value = res->current_row[n]) || backup) && *(name = res->fields[n].name) != '_')
+         if (*(name = res->fields[n].name) != '_' && strcmp(name, "Topic") && (!setting || !strcasecmp(res->fields[n].name, setting)) && ((value = res->current_row[n]) || backup))
          {
             char *t = NULL;
             if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
