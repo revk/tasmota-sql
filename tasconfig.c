@@ -279,8 +279,12 @@ int main(int argc, const char *argv[])
          if (backup)
             sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
          for (int n = 0; n < fields; n++)
-            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "NULL", res->current_row[n] ? : "NULL"))
+            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
+	    {
                sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
+            if (info && res->current_row[n])
+               fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
+	    }
          if (sql_back_s(&s) == ',')
          {
             sql_sprintf(&s, " WHERE `Topic`=%#s", sql_colz(res, "Topic"));
@@ -301,6 +305,8 @@ int main(int argc, const char *argv[])
                waiting++;
                sendmqtt(t, strlen(v), v);
                free(t);
+               if (info)
+                  fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], res->current_row[n], topic, value[n]);
             }
          catchup();
          for (int n = 0; n < fields; n++)
