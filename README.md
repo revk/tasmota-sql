@@ -10,4 +10,4 @@ The Topic field is the key. There are special cases for some fields, e.g. RuleN 
 
 A template sql table is included, and has a lot of Tasmota fields, but you can add more as needed.
 
-Use --help to explain options, the simplest is to list topics of devices to be configured.
+Use --help to explain options.
