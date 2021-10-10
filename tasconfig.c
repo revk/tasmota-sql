@@ -88,7 +88,7 @@ int main(int argc, const char *argv[])
       e = mosquitto_subscribe(mqtt, NULL, "stat/#", 0);
       if (e)
          errx(1, "MQTT subscribe failed %s", mosquitto_strerror(e));
-      if (backup && all)
+      if ( all)
       {
          e = mosquitto_subscribe(mqtt, NULL, "tele/#", 0);
          if (e)
@@ -103,7 +103,7 @@ int main(int argc, const char *argv[])
       struct found_s *next;
       char *topic;
    } *found = NULL;
-   int finding = (backup && all);
+   int finding = all;
    void message(struct mosquitto *mqtt, void *obj, const struct mosquitto_message *msg) {
       if (sqldebug)
          warnx("< %s %.*s", msg->topic, msg->payloadlen, (char *) msg->payload ? : "");
@@ -378,17 +378,7 @@ int main(int argc, const char *argv[])
       sql_free_result(res);
    }
 
-   if (all && !backup)
-   {                            // All
-      SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S`", sqltable));
-      while (sql_fetch_row(res))
-      {
-         topic = sql_colz(res, "Topic");
-         config(res);
-      }
-      sql_free_result(res);
-   }
-   if (all && backup)
+   if (all)
    {
       sleep(2);                 // Get LWTs in...
       finding = 0;
