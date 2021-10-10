@@ -1,6 +1,8 @@
 # tasmota-sql
 
-Tools for management of tasmota devices based on mysql
+Tools for management of tasmota devices based on mysql.
+
+The tasconfig command can load config from tasmota and store in sql, or load from sql and send to tasmota (but only where fields are different). It has option to handle all tasmota it can see. All done via mqtt. Makes backing up all config really simple, and applying changes very simple too.
 
 The mysql table tasmota has fields for tasmota settings. These can be added to as needed and hence allow for more and more settings as needed. The fields should have a mysql comment defined to explain the field in question.
 
