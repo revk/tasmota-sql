@@ -27,6 +27,7 @@ int main(int argc, const char *argv[])
    const char *mqttusername = NULL;
    const char *mqttpassword = NULL;
    const char *mqttid = NULL;
+   const char *setting = NULL;
    int all = 0;
    int info = 0;
    int backup = 0;
@@ -44,6 +45,7 @@ int main(int argc, const char *argv[])
       { "mqtt-username", 'u', POPT_ARG_STRING, &mqttusername, 0, "MQTT username", "username" },
       { "mqtt-password", 'p', POPT_ARG_STRING, &mqttpassword, 0, "MQTT password", "password" },
       { "mqtt-id", 0, POPT_ARG_STRING, &mqttid, 0, "MQTT id", "id" },
+      { "setting", 0, POPT_ARG_STRING, &setting, 0, "Only this setting", "setting" },
       { "info", 0, POPT_ARG_NONE, &info, 0, "Show changes", NULL },
       { "backup", 0, POPT_ARG_NONE, &backup, 0, "Backup device", NULL },
       { "all", 0, POPT_ARG_NONE, &all, 0, "All devices", NULL },
@@ -229,19 +231,20 @@ int main(int argc, const char *argv[])
          fprintf(stderr, "Checking %s\n", topic);
       // Check settings
       const char *findval(j_t j) {      // Get value, including special cases e.g. for rules
-         const char *v = j_get(j, name);
+         j_t r = j_find(j, name);
+         const char *v = j_val(r);
          if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
          {
             if (v)
                return j_get(j, "Rules");        // Alternative style...
-            j_t r = j_find(j, name);
             if (r)
                return j_get(r, "Rules");
             return NULL;
          }
+         if (j_isobject(r) && (!strcmp(name, "Sleep") || !strcmp(name, "Module")))
+            return j_name(j_first(r));  // Stupid format
          if (!strncmp(name, "PulseTime", 9) && isdigit(name[9]))
          {
-            j_t r = j_find(j, name);
             if (r)
                return j_get(r, "Set");
             return NULL;
@@ -270,7 +273,7 @@ int main(int argc, const char *argv[])
       if (backup)
          sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
       for (int n = 0; n < res->field_count; n++)
-         if (((value = res->current_row[n]) || backup) && *(name = res->fields[n].name) != '_')
+         if ((!setting || !strcasecmp(res->fields[n].name, setting)) && ((value = res->current_row[n]) || backup) && *(name = res->fields[n].name) != '_')
          {
             char *t = NULL;
             if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
@@ -372,7 +375,7 @@ int main(int argc, const char *argv[])
       sql_free_result(res);
    }
 
-   if (all&&!backup)
+   if (all && !backup)
    {                            // All
       SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S`", sqltable));
       while (sql_fetch_row(res))
@@ -384,7 +387,7 @@ int main(int argc, const char *argv[])
    }
    if (all && backup)
    {
-      sleep(1);                 // Get LWTs in...
+      sleep(2);                 // Get LWTs in...
       finding = 0;
       while (found)
       {
