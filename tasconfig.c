@@ -295,7 +295,7 @@ int main(int argc, const char *argv[])
                v = findval(j);
                if (!v)
                   warnx("Not found %s in (%s)", name, foundpayload);
-               else if ((!value || !*value || !strcmp(value, "0")) && (!v || !*v || !strcmp(v, "0")))
+               else if ((!value || !*value) && (!v || !*v))
                   match = 1;
                else if (v && value && !strcmp(v, value))
                   match = 1;
