@@ -64,14 +64,14 @@ int main(int argc, const char *argv[])
       poptPrintUsage(optCon, stderr, 0);
       return -1;
    }
+   // As the response handling is all async, we use these as control variables.
+   const char *topic = NULL;    // Current device topic
+   int fields = 0;              // Number of fields
+   int waiting = 0;             // Number of fields we are waiting for
+   char **name = NULL;          // Set of fields names
+   char **value = NULL;         // Set of (malloc'd) found values
 
    SQL sql;
-   const char *topic = NULL;    // Current topic / device
-   char *foundtopic = NULL;
-   char *foundpayload = NULL;
-   char *name = NULL;
-   char *value = NULL;
-   int foundpayloadlen = 0;
    int e = mosquitto_lib_init();
    if (e)
       errx(1, "MQTT init failed %s", mosquitto_strerror(e));
@@ -108,8 +108,7 @@ int main(int argc, const char *argv[])
       if (sqldebug)
          warnx("< %s %.*s", msg->topic, msg->payloadlen, (char *) msg->payload ? : "");
       obj = obj;
-      // Expecting stat/[name]/RESULT {"name"...
-      // Check topic
+      // The Initial LWT are used to find a list of devices that are online.
       char *s = msg->topic;
       if (finding && !strncmp(s, "tele/", 5))
       {                         // Add to list
@@ -123,38 +122,74 @@ int main(int argc, const char *argv[])
             f->next = found;
             found = f;
          }
-      }
-      if (foundtopic || !name)
          return;
+      }
+      if (!fields || !topic)
+         return;                // We don't have a set of fields
       if (strncmp(s, "stat/", 5))
          return;
-      s += 5;
-      if (strncmp(s, topic, strlen(topic)))
+      char *t = s + 5;
+      char *d = strchr(t, '/');
+      if (!d || strcmp(d, "/RESULT") || d - t != strlen(topic) || strncmp(t, topic, d - t))
          return;
-      s += strlen(topic);
-      if (*s != '/')
-         return;
-      s++;
-      if (strcmp(s, "RESULT"))
-         return;
-      // Check payload
       j_t j = j_create();
       const char *je = j_read_mem(j, (char *) msg->payload, msg->payloadlen);
-      if (!je && !j_find(j, name))
-         je = "nope";
-      j_delete(&j);
       if (je)
+      {                         // Not JSON
+         j_delete(&j);
          return;
-      foundtopic = strdup(msg->topic);
-      if (!foundtopic)
-         errx(1, "malloc");
-      foundpayloadlen = msg->payloadlen;
-      foundpayload = malloc(foundpayloadlen + 1);
-      if (!foundpayload)
-         errx(1, "malloc");
-      if (foundpayloadlen)
-         memcpy(foundpayload, msg->payload, foundpayloadlen);
-      foundpayload[foundpayloadlen] = 0;
+      }
+      // Process data
+      void process(j_t j) {     // Process a value
+         const char *tag = j_name(j);
+         int n = 0;
+         for (n = 0; n < fields && strcasecmp(name[n], tag); n++);
+         if (n >= fields)
+         {
+            warnx("Unexpected field %s in %s", tag, topic);
+            return;
+         }
+         const char *val = j_val(j);
+         // Some special cases
+         if (j_isobject(j) && (!strcasecmp(tag, "module") || !strcasecmp(tag, "sleep")))
+            val = j_name(j_first(j));   // Crazy, field value is first tag
+         else if (j_isobject(j) && !strncasecmp(tag, "rule", 4) && isdigit(tag[4]))
+            val = j_get(j, "Rules") ? : "0";
+         else if (j_isobject(j) && !strncasecmp(tag, "pulsetime", 9) && isdigit(tag[9]))
+            val = j_get(j, "Set");
+         else if (val && !strcasecmp(tag, "webserver"))
+         {
+            if (strstr(val, "Admin"))
+               val = "2";
+            else if (strstr(val, "User"))
+               val = "1";
+            else
+               val = "0";
+         } else if (val && !strncasecmp(tag, "setoption", 9) && isdigit(tag[9]))
+         {
+            if (!strcasecmp(val, "off"))
+               val = "0";
+            if (!strcasecmp(val, "on"))
+               val = "1";
+         }
+         free(value[n]);
+         if (!val || !*val)
+            val = "0";
+         value[n] = strdup(val);
+      }
+      j_t f = j_first(j);
+      const char *tag = j_name(f);
+      if (!strcasecmp(tag, "GroupTopic1"))
+      {                         // List of values
+         while (f)
+         {
+            process(f);
+            f = j_next(f);
+         }
+      } else
+         process(f);
+      waiting--;
+      j_delete(&j);
    }
    mosquitto_connect_callback_set(mqtt, connect);
    mosquitto_disconnect_callback_set(mqtt, disconnect);
@@ -168,199 +203,118 @@ int main(int argc, const char *argv[])
 
    sql_real_connect(&sql, sqlhostname, sqlusername, sqlpassword, sqldatabase, 0, NULL, 0, 1, sqlconffile);
 
-   void sendfree(char *topic, int len, void *payload) {
-      free(foundtopic);
-      foundtopic = NULL;
-      free(foundpayload);
-      foundpayload = NULL;
+   void sendmqtt(char *topic, int len, void *payload) {
       if (sqldebug)
          warnx("> %s %.*s", topic, len, (char *) payload ? : "");
       int e = mosquitto_publish(mqtt, NULL, topic, len, payload, 0, 0);
       if (e)
          errx(1, "MQTT publish failed %s", mosquitto_strerror(e));
-      free(topic);
-   }
-
-   int getstat(void) {          // Wait for a message from current topic device...
-      struct timeval now;
-      gettimeofday(&now, NULL);
-      long long giveup = now.tv_sec * 1000000 + now.tv_usec + 2000000;
-      while (1)
-      {
-         usleep(10000);
-         if (foundtopic)
-            return 0;
-         gettimeofday(&now, NULL);
-         if (now.tv_sec * 1000000 + now.tv_usec > giveup)
-            break;
-      }
-      return -1;
    }
 
    void config(SQL_RES * res) { // Configure a devices
       // Check device is on line even...
-      name = "Topic";
-      char *t = NULL;
-      if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
-         errx(1, "malloc");
-      sendfree(t, 0, NULL);
-      if (getstat())
-      {
-         char *alt = sql_colz(res, "_Topic");
-         if (alt && *alt)
-         {
-            warnx("Not responding %s, trying %s", topic, alt);
-            topic = alt;
-            if (asprintf(&t, "cmnd/%s/status", topic) < 0)
-               errx(1, "malloc");
-            sendfree(t, 0, NULL);
-            if (getstat())
-            {
-               warnx("Not responding %s", topic);
-               return;
-            }
-         } else
-         {
-            warnx("Not responding %s (and no alternative to try)", topic);
-            return;
-         }
-      }
+      waiting = 0;
+      fields = 0;
+      value = malloc(sizeof(*value) * res->field_count);
+      for (int n = 0; n < res->field_count; n++)
+         value[n] = NULL;
+      name = malloc(sizeof(*name) * res->field_count);
+      for (int n = 0; n < res->field_count; n++)
+         name[n] = res->fields[n].name;
+      fields = res->field_count;
+
       if (sqldebug)
          warnx("Config for %s", topic);
       else if (info)
          fprintf(stderr, "Checking %s\n", topic);
-      // Check settings
-      const char *findval(j_t j) {      // Get value, including special cases e.g. for rules
-         j_t r = j_find(j, name);
-         const char *v = j_val(r);
-         if (!strncmp(name, "Rule", 4) && isdigit(name[4]))
+
+      char bl[1000];
+      *bl = 0;
+      char *t = NULL;
+      if (asprintf(&t, "cmnd/%s/Backlog0", topic) < 0)
+         errx(1, "malloc");
+
+      int catchup(void) {
+         int bored = 1,
+             last = -1;
+         while (waiting)
          {
-            if (v)
-               return j_get(j, "Rules");        // Alternative style...
-            if (r)
-               return j_get(r, "Rules");
-            return NULL;
+            if (last != waiting)
+               bored = 10;
+            else if (!--bored)
+               break;
+            last = waiting;
+            usleep(100000);
          }
-         if (j_isobject(r) && (!strcmp(name, "Sleep") || !strcmp(name, "Module")))
-            return j_name(j_first(r));  // Stupid format
-         if (!strncmp(name, "PulseTime", 9) && isdigit(name[9]))
-         {
-            if (r)
-               return j_get(r, "Set");
-            return NULL;
-         }
-         if (!v)
-            return NULL;
-         if (!strcmp(name, "Webserver"))
-         {
-            if (strstr(v, "Active for Admin"))
-               return "2";
-            if (strstr(v, "Active for User"))
-               return "1";
-            return "0";
-         }
-         if (!strncmp(name, "SetOption", 9))
-         {
-            if (!strcmp(v, "ON"))
-               return "1";
-            if (!strcmp(v, "OFF"))
-               return "0";
-            return v;
-         }
-         return v;
+         if (waiting)
+            warnx("Missing data from %s (%d)", topic, waiting);
+         return waiting;
       }
-      sql_string_t s = { };
-      if (backup)
-         sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
-      for (int n = 0; n < res->field_count; n++)
-         if (*(name = res->fields[n].name) != '_' && strcmp(name, "Topic") && (!setting || !strcasecmp(res->fields[n].name, setting)) && ((value = res->current_row[n]) || backup))
+      int count = 0;
+      for (int n = 0; n < fields; n++)
+         if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (!setting || !strcasecmp(name[n], setting)) && (res->current_row[n] || backup))
          {
-            char *t = NULL;
-            if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
-               errx(1, "malloc");
-            sendfree(t, 0, NULL);
-            if (getstat())
+            if (count >= 25 || strlen(bl) + strlen(name[n]) + 1 > sizeof(bl) - 1)
             {
-               warnx("No data for %s/%s", topic, name);
-               continue;
+               sendmqtt(t, strlen(bl), bl);
+               catchup();
+               *bl = 0;
+               count = 0;
             }
-            char match = 0;
-            const char *v = NULL;
-            j_t j = j_create();
-            const char *je = j_read_mem(j, foundpayload, foundpayloadlen);
-            if (je)
-               warnx("Bad JSON: %s (%s)", foundpayload, je);
-            else
-            {
-               v = findval(j);
-               if (!v)
-                  warnx("Not found %s in (%s)", name, foundpayload);
-               else if ((!value || !*value) && (!v || !*v))
-                  match = 1;
-               else if (v && value && !strcmp(v, value))
-                  match = 1;
-            }
-            if (!match)
-            {                   // Send / store
-               if (backup)
-               {                // Store
-                  if (strncmp(name, "Password", 9) || !v || strcmp(v, "****"))
-                  {
-                     if (v && !*v)
-                        v = NULL;
-                     if (v || value)
-                        sql_sprintf(&s, "`%#S`=%#s,", name, v);
-                  }
-               } else
-               {                // Correct
-                  if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
-                     errx(1, "malloc");
-                  sendfree(t, strlen(value), value);
-                  if (getstat())
-                     warnx("No response setting %s to %s on %s", name, value, topic);
-                  else
-                  {
-                     j_t j2 = j_create();
-                     const char *je = j_read_mem(j2, foundpayload, foundpayloadlen);
-                     if (je)
-                        warnx("Bad JSON: %s (%s)", foundpayload, je);
-                     else
-                     {
-                        const char *v2 = findval(j2);
-                        if (!v2)
-                           warnx("Not found %s in (%s)", name, topic);
-                        else if (strcmp(v2, value))
-                           warnx("Unable to set %s to %s on %s (is %s)", name, value, topic, v2);
-                        else
-                        {
-                           if (info)
-                              fprintf(stderr, "Updated %s to %s on %s (was %s)\n", name, value, topic, v ? : "unknown");
-                           if (!strncmp(name, "Rule", 4) && isdigit(name[4]) && strcmp(value, "0"))
-                           {    // Special case for Rule setting
-                              if (asprintf(&t, "cmnd/%s/%s", topic, name) < 0)
-                                 errx(1, "malloc");
-                              sendfree(t, 1, "1");
-                              if (getstat())
-                                 warnx("Setting %s 1 did not work on %s", name, topic);
-                           }
-                        }
-                     }
-                     j_delete(&j2);
-                  }
-               }
-            }
-            j_delete(&j);
+            waiting++;
+            if (*bl)
+               strcat(bl, ";");
+            strcat(bl, name[n]);
+            count++;
          }
-      if (backup)
+      if (*bl)
       {
+         sendmqtt(t, strlen(bl), bl);
+         catchup();
+      }
+      free(t);
+      if (backup)
+      {                         // Reading from device
+         sql_string_t s = { };
+         if (backup)
+            sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
+         for (int n = 0; n < fields; n++)
+            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "NULL", res->current_row[n] ? : "NULL"))
+               sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
          if (sql_back_s(&s) == ',')
          {
             sql_sprintf(&s, " WHERE `Topic`=%#s", sql_colz(res, "Topic"));
             sql_safe_query_s(&sql, &s);
          } else
             sql_free_s(&s);
+      } else
+      {                         // Update device on changes
+         char *v;
+         for (int n = 0; n < fields; n++)
+            if (value[n] && strcmp(value[n] ? : "0", ((v = res->current_row[n]) && *v) ? v : "0"))
+            {
+               if (!v || !*v)
+                  v = "0";
+               char *t;
+               if (asprintf(&t, "cmnd/%s/%s", topic, name[n]) < 0)
+                  errx(1, "malloc");
+               waiting++;
+               sendmqtt(t, strlen(v), v);
+               free(t);
+            }
+         catchup();
+         for (int n = 0; n < fields; n++)
+            if (value[n] && strcmp(value[n] ? : "0", ((v = res->current_row[n]) && *v) ? v : "0"))
+               warnx("Failed to store %s as %s on %s (is %s)", name[n], res->current_row[n], topic, value[n]);
       }
+      // Tidy
+      fields = 0;
+      for (int n = 0; n < res->field_count; n++)
+         free(value[n]);
+      free(value);
+      free(name);
    }
+
    void configtopic(void) {
       SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
       if (!sql_fetch_row(res))
@@ -398,8 +352,6 @@ int main(int argc, const char *argv[])
    }
    // Tidy up
    mosquitto_loop_stop(mqtt, 1);
-   free(foundtopic);
-   free(foundpayload);
    mosquitto_destroy(mqtt);
    mosquitto_lib_cleanup();
    sql_close(&sql);
