@@ -330,10 +330,13 @@ int main(int argc, const char *argv[])
       SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
       if (!sql_fetch_row(res))
       {
-         warnx("Not found in %s table: %s", sqltable, topic);
          sql_free_result(res);
          if (!backup)
+	 {
+         warnx("Not found in database: %s", topic);
             return;
+	 }
+         warnx("Creating new device in database: %s", topic);
          sql_safe_query_free(&sql, sql_printf("INSERT INTO `%#S` SET `Topic`=%#s", sqltable, topic));
          res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
          if (!sql_fetch_row(res))
