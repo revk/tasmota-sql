@@ -154,8 +154,12 @@ int main(int argc, const char *argv[])
          if (j_isobject(j) && (!strcasecmp(tag, "module") || !strcasecmp(tag, "sleep")))
             val = j_name(j_first(j));   // Crazy, field value is first tag
          else if (j_isobject(j) && !strncasecmp(tag, "rule", 4) && isdigit(tag[4]))
-            val = j_get(j, "Rules") ? : "0";
-         else if (j_isobject(j) && !strncasecmp(tag, "pulsetime", 9) && isdigit(tag[9]))
+         {
+            if (!strcmp(j_get(j, "State") ? : "", "OFF"))
+               val = "0";
+            else
+               val = j_get(j, "Rules") ? : "0";
+         } else if (j_isobject(j) && !strncasecmp(tag, "pulsetime", 9) && isdigit(tag[9]))
             val = j_get(j, "Set");
          else if (val && !strcasecmp(tag, "webserver"))
          {
@@ -306,8 +310,9 @@ int main(int argc, const char *argv[])
                sendmqtt(t, strlen(v), v);
                if (info)
                   fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], res->current_row[n], topic, value[n]);
-               if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(value[n], "0"))
+               if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(res->current_row[n], "0"))
                {                // Special case for rules
+                  fprintf(stderr, "Enabling %s\n", name[n]);
                   waiting++;
                   sendmqtt(t, 1, "1");  // Set RuleN 1
                }
@@ -332,10 +337,10 @@ int main(int argc, const char *argv[])
       {
          sql_free_result(res);
          if (!backup)
-	 {
-         warnx("Not found in database: %s", topic);
+         {
+            warnx("Not found in database: %s", topic);
             return;
-	 }
+         }
          warnx("Creating new device in database: %s", topic);
          sql_safe_query_free(&sql, sql_printf("INSERT INTO `%#S` SET `Topic`=%#s", sqltable, topic));
          res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
