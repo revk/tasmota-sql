@@ -29,7 +29,7 @@ int main(int argc, const char *argv[])
    const char *mqttid = NULL;
    const char *setting = NULL;
    int all = 0;
-   int info = 0;
+   int quiet = 0;
    int backup = 0;
 
    poptContext optCon;          // context for parsing command-line options
@@ -46,9 +46,9 @@ int main(int argc, const char *argv[])
       { "mqtt-password", 'p', POPT_ARG_STRING, &mqttpassword, 0, "MQTT password", "password" },
       { "mqtt-id", 0, POPT_ARG_STRING, &mqttid, 0, "MQTT id", "id" },
       { "setting", 0, POPT_ARG_STRING, &setting, 0, "Only this setting", "setting" },
-      { "info", 0, POPT_ARG_NONE, &info, 0, "Show changes", NULL },
-      { "backup", 0, POPT_ARG_NONE, &backup, 0, "Backup device", NULL },
-      { "all", 0, POPT_ARG_NONE, &all, 0, "All devices", NULL },
+      { "quiet", 'q', POPT_ARG_NONE, &quiet, 0, "Don't show progress", NULL },
+      { "backup", 'b', POPT_ARG_NONE, &backup, 0, "Backup device", NULL },
+      { "all", 'a', POPT_ARG_NONE, &all, 0, "All devices", NULL },
       POPT_AUTOHELP { }
    };
 
@@ -229,7 +229,7 @@ int main(int argc, const char *argv[])
 
       if (sqldebug)
          warnx("Config for %s", topic);
-      else if (info)
+      else if (!quiet)
          fprintf(stderr, "Checking %s\n", topic);
 
       char bl[1000];
@@ -286,7 +286,7 @@ int main(int argc, const char *argv[])
             if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
             {
                sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
-               if (info && res->current_row[n])
+               if (!quiet && res->current_row[n])
                   fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
             }
          if (sql_back_s(&s) == ',')
@@ -308,7 +308,7 @@ int main(int argc, const char *argv[])
                   errx(1, "malloc");
                waiting++;
                sendmqtt(t, strlen(v), v);
-               if (info)
+               if (!quiet)
                   fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], res->current_row[n], topic, value[n]);
                if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(res->current_row[n], "0"))
                {                // Special case for rules
