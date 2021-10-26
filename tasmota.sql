@@ -79,7 +79,6 @@ CREATE TABLE `device` (
   `SetOption13` enum('0','1') DEFAULT NULL COMMENT 'Allow simple button immediate',
   `SetOption15` enum('0','1') DEFAULT NULL COMMENT 'Set PWM control for LED',
   `SetOption16` enum('0','1') DEFAULT NULL COMMENT 'LED Clock scheme',
-  `SetOption17` enum('0','1') DEFAULT NULL COMMENT 'Color string setting',
   `SetOption18` enum('0','1') DEFAULT NULL COMMENT 'Light paired with CO2',
   `SetOption19` enum('0','1') DEFAULT NULL COMMENT 'Home assistant protocol',
   `SetOption20` enum('0','1') DEFAULT NULL COMMENT 'Dimmer/Color/CT without power on',
@@ -108,7 +107,6 @@ CREATE TABLE `device` (
   `SetOption56` enum('0','1') DEFAULT NULL COMMENT 'WiFi scan on start',
   `SetOption57` enum('0','1') DEFAULT NULL COMMENT 'WiFi scan evert 44 minutes',
   `SetOption58` enum('0','1') DEFAULT NULL COMMENT 'IR raw data in JSON',
-  `SetOption59` enum('0','1') DEFAULT NULL COMMENT 'Send STATE as well as RESULT',
   `SetOption60` enum('0','1') DEFAULT NULL COMMENT 'Sleep mode normal',
   `SetOption61` enum('0','1') DEFAULT NULL COMMENT 'Force local button/switch',
   `SetOption62` enum('0','1') DEFAULT NULL COMMENT 'Set retain on button/switch',
@@ -167,4 +165,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-10-12 12:07:15
+-- Dump completed on 2021-10-26  9:14:27

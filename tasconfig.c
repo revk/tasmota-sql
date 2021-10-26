@@ -15,6 +15,8 @@
 
 int debug = 0;
 
+#define       BACKLOG
+
 int main(int argc, const char *argv[])
 {
    const char *sqlhostname = NULL;
@@ -235,8 +237,10 @@ int main(int argc, const char *argv[])
       char bl[1000];
       *bl = 0;
       char *t = NULL;
+#ifdef	BACKLOG
       if (asprintf(&t, "cmnd/%s/Backlog0", topic) < 0)
          errx(1, "malloc");
+#endif
 
       int catchup(void) {
          int bored = 1,
@@ -258,6 +262,7 @@ int main(int argc, const char *argv[])
       for (int n = 0; n < fields; n++)
          if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (!setting || !strcasecmp(name[n], setting)) && (res->current_row[n] || backup))
          {
+#ifdef	BACKLOG
             if (count >= 25 || strlen(bl) + strlen(name[n]) + 1 > sizeof(bl) - 1)
             {
                sendmqtt(t, strlen(bl), bl);
@@ -265,18 +270,26 @@ int main(int argc, const char *argv[])
                *bl = 0;
                count = 0;
             }
-            waiting++;
             if (*bl)
                strcat(bl, ";");
             strcat(bl, name[n]);
+#else
+            if (waiting > 10)
+               usleep(50000);
+            asprintf(&t, "cmnd/%s/%s", topic, name[n]);
+            sendmqtt(t, 0, NULL);
+#endif
+            waiting++;
             count++;
          }
+#ifdef	BACKLOG
       if (*bl)
       {
          sendmqtt(t, strlen(bl), bl);
          catchup();
       }
       free(t);
+#endif
       if (backup)
       {                         // Reading from device
          sql_string_t s = { };
