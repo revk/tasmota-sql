@@ -60,6 +60,26 @@ CREATE TABLE `device` (
   `PulseTime4` int(11) DEFAULT NULL COMMENT 'Switch pulse time',
   `WebButton4` tinytext DEFAULT NULL COMMENT 'Switch web button',
   `FriendlyName4` tinytext DEFAULT NULL COMMENT 'Switch friendly name',
+  `SwitchMode5` enum('0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15') DEFAULT NULL COMMENT 'Switch mode code',
+  `SwitchText5` tinytext DEFAULT NULL COMMENT 'Switch text',
+  `PulseTime5` int(11) DEFAULT NULL COMMENT 'Switch pulse time',
+  `WebButton5` tinytext DEFAULT NULL COMMENT 'Switch web button',
+  `FriendlyName5` tinytext DEFAULT NULL COMMENT 'Switch friendly name',
+  `SwitchMode6` enum('0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15') DEFAULT NULL COMMENT 'Switch mode code',
+  `SwitchText6` tinytext DEFAULT NULL COMMENT 'Switch text',
+  `PulseTime6` int(11) DEFAULT NULL COMMENT 'Switch pulse time',
+  `WebButton6` tinytext DEFAULT NULL COMMENT 'Switch web button',
+  `FriendlyName6` tinytext DEFAULT NULL COMMENT 'Switch friendly name',
+  `SwitchMode7` enum('0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15') DEFAULT NULL COMMENT 'Switch mode code',
+  `SwitchText7` tinytext DEFAULT NULL COMMENT 'Switch text',
+  `PulseTime7` int(11) DEFAULT NULL COMMENT 'Switch pulse time',
+  `WebButton7` tinytext DEFAULT NULL COMMENT 'Switch web button',
+  `FriendlyName7` tinytext DEFAULT NULL COMMENT 'Switch friendly name',
+  `SwitchMode8` enum('0','1','2','3','4','5','6','7','8','9','10','11','12','13','14','15') DEFAULT NULL COMMENT 'Switch mode code',
+  `SwitchText8` tinytext DEFAULT NULL COMMENT 'Switch text',
+  `PulseTime8` int(11) DEFAULT NULL COMMENT 'Switch pulse time',
+  `WebButton8` tinytext DEFAULT NULL COMMENT 'Switch web button',
+  `FriendlyName8` tinytext DEFAULT NULL COMMENT 'Switch friendly name',
   `NtpServer1` tinytext DEFAULT NULL COMMENT 'NTP server',
   `NtpServer2` tinytext DEFAULT NULL COMMENT 'NTP server',
   `NtpServer3` tinytext DEFAULT NULL COMMENT 'NTP server',
@@ -165,4 +185,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-10-26  9:14:27
+-- Dump completed on 2021-10-31 11:19:49
