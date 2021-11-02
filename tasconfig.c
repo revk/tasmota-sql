@@ -153,7 +153,7 @@ int main(int argc, const char *argv[])
          }
          const char *val = j_val(j);
          // Some special cases
-         if (j_isobject(j) && (!strcasecmp(tag, "module") || !strcasecmp(tag, "sleep")))
+         if (j_isobject(j) && (!strcasecmp(tag, "module") || !strcasecmp(tag, "sleep") || !strncasecmp(tag, "gpio", 4)))
             val = j_name(j_first(j));   // Crazy, field value is first tag
          else if (j_isobject(j) && !strncasecmp(tag, "rule", 4) && isdigit(tag[4]))
          {
@@ -260,7 +260,7 @@ int main(int argc, const char *argv[])
       }
       int count = 0;
       for (int n = 0; n < fields; n++)
-         if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (!setting || !strcasecmp(name[n], setting)) && (res->current_row[n] || backup))
+         if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (strncmp(name[n], "GPIO", 4) || name[n][4] == '0') && (!setting || !strcasecmp(name[n], setting)) && (res->current_row[n] || backup))
          {
 #ifdef	BACKLOG
             if (count >= 25 || strlen(bl) + strlen(name[n]) + 1 > sizeof(bl) - 1)
