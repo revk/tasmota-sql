@@ -186,6 +186,9 @@ CREATE TABLE `device` (
   `GPIO15` int(11) DEFAULT NULL,
   `GPIO16` int(11) DEFAULT NULL,
   `GPIO17` int(11) DEFAULT NULL,
+  `Timezone` tinytext DEFAULT NULL,
+  `TimeStd` tinytext DEFAULT NULL,
+  `TimeDst` tinytext DEFAULT NULL,
   PRIMARY KEY (`Topic`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -199,4 +202,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-02  7:17:53
+-- Dump completed on 2021-11-09  8:51:41

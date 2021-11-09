@@ -177,6 +177,17 @@ int main(int argc, const char *argv[])
                val = "0";
             if (!strcasecmp(val, "on"))
                val = "1";
+         } else if (j_isobject(j) && (!strcasecmp(tag, "TimeStd") || !strcasecmp(tag, "TimeDst")))
+         {                      // Comma separated list of numbers from object
+            char *v = NULL;
+            size_t l;
+            FILE *f = open_memstream(&v, &l);
+            for (j_t o = j_first(j); o; o = j_next(o))
+               fprintf(f, ",%s", j_val(o));
+            fclose(f);
+            if (l)
+               val = strdupa(v + 1);
+            free(v);
          }
          free(value[n]);
          if (!val || !*val)
