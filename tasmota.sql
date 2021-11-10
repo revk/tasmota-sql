@@ -189,6 +189,23 @@ CREATE TABLE `device` (
   `Timezone` tinytext DEFAULT NULL,
   `TimeStd` tinytext DEFAULT NULL,
   `TimeDst` tinytext DEFAULT NULL,
+  `TelePeriod` int(11) DEFAULT NULL,
+  `Timer1` tinytext DEFAULT NULL,
+  `Timer2` tinytext DEFAULT NULL,
+  `Timer3` tinytext DEFAULT NULL,
+  `Timer4` tinytext DEFAULT NULL,
+  `Timer5` tinytext DEFAULT NULL,
+  `Timer6` tinytext DEFAULT NULL,
+  `Timer7` tinytext DEFAULT NULL,
+  `Timer8` tinytext DEFAULT NULL,
+  `Timer9` tinytext DEFAULT NULL,
+  `Timer10` tinytext DEFAULT NULL,
+  `Timer11` tinytext DEFAULT NULL,
+  `Timer12` tinytext DEFAULT NULL,
+  `Timer13` tinytext DEFAULT NULL,
+  `Timer14` tinytext DEFAULT NULL,
+  `Timer15` tinytext DEFAULT NULL,
+  `Timer16` tinytext DEFAULT NULL,
   PRIMARY KEY (`Topic`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -202,4 +219,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-09  8:51:41
+-- Dump completed on 2021-11-10  7:20:41

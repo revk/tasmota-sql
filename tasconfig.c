@@ -152,6 +152,7 @@ int main(int argc, const char *argv[])
             return;
          }
          const char *val = j_val(j);
+         char *m = NULL;        // if malloced
          // Some special cases
          if (j_isobject(j) && (!strcasecmp(tag, "module") || !strcasecmp(tag, "sleep") || !strncasecmp(tag, "gpio", 4)))
             val = j_name(j_first(j));   // Crazy, field value is first tag
@@ -186,13 +187,23 @@ int main(int argc, const char *argv[])
                fprintf(f, ",%s", j_val(o));
             fclose(f);
             if (l)
-               val = strdupa(v + 1);
+               val = m = strdup(v + 1);
             free(v);
+         } else if (j_isobject(j) && !strncasecmp(tag, "Timer", 5) && isdigit(tag[5]))
+         {                      // Timer specifically
+            if (!atoi(j_get(j, "Enable") ? : ""))
+               val = NULL;
+            else
+               val = m = j_write_str(j);
+         } else if (j_isobject(j))
+         {                      // Treat as JSON as text
+            val = m = j_write_str(j);
          }
          free(value[n]);
          if (!val || !*val)
             val = "0";
          value[n] = strdup(val);
+         free(m);
       }
       j_t f = j_first(j);
       const char *tag = j_name(f);
