@@ -149,9 +149,8 @@ int main(int argc, const char *argv[])
          {                      // template does not say template FFS
             tag = "Template";
             j = data;
-         }
-         else if (!strcmp(tag, "GPIO") && !strcmp(val, "Not supported"))
-		 return;
+         } else if (!strcmp(tag, "GPIO") && !strcmp(val, "Not supported"))
+            return;
          int n = 0;
          for (n = 0; n < fields && strcasecmp(name[n], tag); n++);
          if (n >= fields)
