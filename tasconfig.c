@@ -134,16 +134,24 @@ int main(int argc, const char *argv[])
       char *d = strchr(t, '/');
       if (!d || strcmp(d, "/RESULT") || d - t != strlen(topic) || strncmp(t, topic, d - t))
          return;
-      j_t j = j_create();
-      const char *je = j_read_mem(j, (char *) msg->payload, msg->payloadlen);
+      j_t data = j_create();
+      const char *je = j_read_mem(data, (char *) msg->payload, msg->payloadlen);
       if (je)
       {                         // Not JSON
-         j_delete(&j);
+         j_delete(&data);
          return;
       }
       // Process data
       void process(j_t j) {     // Process a value
          const char *tag = j_name(j);
+         const char *val = j_val(j);
+         if (!strcmp(tag, "NAME") && j_find(data, "GPIO"))
+         {                      // template does not say template FFS
+            tag = "Template";
+            j = data;
+         }
+         else if (!strcmp(tag, "GPIO") && !strcmp(val, "Not supported"))
+		 return;
          int n = 0;
          for (n = 0; n < fields && strcasecmp(name[n], tag); n++);
          if (n >= fields)
@@ -151,7 +159,6 @@ int main(int argc, const char *argv[])
             warnx("Unexpected field %s in %s", tag, topic);
             return;
          }
-         const char *val = j_val(j);
          char *m = NULL;        // if malloced
          // Some special cases
          if (j_isobject(j) && (!strcasecmp(tag, "module") || !strcasecmp(tag, "sleep") || !strncasecmp(tag, "gpio", 4)))
@@ -205,7 +212,7 @@ int main(int argc, const char *argv[])
          value[n] = strdup(val);
          free(m);
       }
-      j_t f = j_first(j);
+      j_t f = j_first(data);
       const char *tag = j_name(f);
       if (!strcasecmp(tag, "GroupTopic1"))
       {                         // List of values
@@ -217,7 +224,7 @@ int main(int argc, const char *argv[])
       } else
          process(f);
       waiting--;
-      j_delete(&j);
+      j_delete(&data);
    }
    mosquitto_connect_callback_set(mqtt, connect);
    mosquitto_disconnect_callback_set(mqtt, disconnect);

@@ -172,6 +172,7 @@ CREATE TABLE `device` (
   `SetOption126` int(1) DEFAULT NULL COMMENT 'Arithmetic mean over teleperiod for JSON with DS18x20',
   `SetOption127` int(1) DEFAULT NULL COMMENT 'Wifi no sleep',
   `Module` int(11) DEFAULT NULL COMMENT 'Module type code',
+  `Template` tinytext DEFAULT NULL,
   `GPIO0` int(11) DEFAULT NULL,
   `GPIO1` int(11) DEFAULT NULL,
   `GPIO2` int(11) DEFAULT NULL,
@@ -219,4 +220,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-10  7:20:41
+-- Dump completed on 2021-11-17 13:39:00
