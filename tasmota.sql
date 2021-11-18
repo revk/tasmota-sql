@@ -24,6 +24,7 @@ DROP TABLE IF EXISTS `device`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `device` (
   `Topic` varchar(100) NOT NULL COMMENT 'The main device topic, unique key for this table',
+  `_base` varchar(100) DEFAULT NULL,
   `MqttHost` tinytext DEFAULT NULL COMMENT 'MQTT Hostname',
   `SSId1` tinytext DEFAULT NULL COMMENT 'SSID',
   `SSId2` tinytext DEFAULT NULL COMMENT 'SSID',
@@ -220,4 +221,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-17 13:39:00
+-- Dump completed on 2021-11-18 12:55:34

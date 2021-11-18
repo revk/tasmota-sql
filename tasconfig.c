@@ -30,6 +30,7 @@ int main(int argc, const char *argv[])
    const char *mqttpassword = NULL;
    const char *mqttid = NULL;
    const char *setting = NULL;
+   const char *base = NULL;
    int all = 0;
    int quiet = 0;
    int backup = 0;
@@ -48,6 +49,7 @@ int main(int argc, const char *argv[])
       { "mqtt-password", 'p', POPT_ARG_STRING, &mqttpassword, 0, "MQTT password", "password" },
       { "mqtt-id", 0, POPT_ARG_STRING, &mqttid, 0, "MQTT id", "id" },
       { "setting", 0, POPT_ARG_STRING, &setting, 0, "Only this setting", "setting" },
+      { "base", 0, POPT_ARG_STRING, &base, 0, "Base settings", "topic" },
       { "quiet", 'q', POPT_ARG_NONE, &quiet, 0, "Don't show progress", NULL },
       { "backup", 'b', POPT_ARG_NONE, &backup, 0, "Backup device", NULL },
       { "all", 'a', POPT_ARG_NONE, &all, 0, "All devices", NULL },
@@ -237,7 +239,7 @@ int main(int argc, const char *argv[])
 
    sql_real_connect(&sql, sqlhostname, sqlusername, sqlpassword, sqldatabase, 0, NULL, 0, 1, sqlconffile);
 
-   void sendmqtt(char *topic, int len, void *payload) {
+   void sendmqtt(char *topic, int len, const void *payload) {
       if (sqldebug)
          warnx("> %s %.*s", topic, len, (char *) payload ? : "");
       int e = mosquitto_publish(mqtt, NULL, topic, len, payload, 0, 0);
@@ -246,6 +248,18 @@ int main(int argc, const char *argv[])
    }
 
    void config(SQL_RES * res) { // Configure a devices
+      if (!base)
+         base = sql_col(res, "_base");
+      SQL_RES *baseres = NULL;
+      if (base)
+      {
+         baseres = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, base));
+         if (!sql_fetch_row(baseres))
+         {
+            sql_free_result(baseres);
+            baseres = NULL;
+         }
+      }
       // Check device is on line even...
       waiting = 0;
       fields = 0;
@@ -286,9 +300,17 @@ int main(int argc, const char *argv[])
             warnx("Missing data from %s (%d)", topic, waiting);
          return waiting;
       }
+      const char *fetch(int n) {
+         const char *v = NULL;
+         if (baseres && strcasecmp(name[n], "Topic"))
+            v = baseres->current_row[n];
+         if (!v)
+            v = res->current_row[n];
+         return v;
+      }
       int count = 0;
       for (int n = 0; n < fields; n++)
-         if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (strncmp(name[n], "GPIO", 4) || name[n][4] == '0') && (!setting || !strcasecmp(name[n], setting)) && (res->current_row[n] || backup))
+         if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (strncmp(name[n], "GPIO", 4) || name[n][4] == '0') && (!setting || !strcasecmp(name[n], setting)) && (fetch(n) || backup))
          {
 #ifdef	BACKLOG
             if (count >= 25 || strlen(bl) + strlen(name[n]) + 1 > sizeof(bl) - 1)
@@ -318,29 +340,27 @@ int main(int argc, const char *argv[])
       }
       free(t);
 #endif
+      sql_string_t s = { };
+      sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
+      if (base && sql_colnum(res, "_base") >= 0 && strcmp(base, sql_colz(res, "_base")))
+         sql_sprintf(&s, "`_base`=%#s,", base);
       if (backup)
       {                         // Reading from device
-         sql_string_t s = { };
-         if (backup)
-            sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
          for (int n = 0; n < fields; n++)
             if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
             {
                sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
-               if (!quiet && res->current_row[n])
+               if (!quiet && fetch(n))
                   fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
             }
-         if (sql_back_s(&s) == ',')
-         {
-            sql_sprintf(&s, " WHERE `Topic`=%#s", sql_colz(res, "Topic"));
-            sql_safe_query_s(&sql, &s);
-         } else
-            sql_free_s(&s);
       } else
       {                         // Update device on changes
-         char *v;
+         const char *v;
          for (int n = 0; n < fields; n++)
-            if (value[n] && strcmp(value[n] ? : "0", ((v = res->current_row[n]) && *v) ? v : "0"))
+         {
+            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
+               sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
+            if (value[n] && strcmp(value[n] ? : "0", ((v = fetch(n)) && *v) ? v : "0"))
             {
                if (!v || !*v)
                   v = "0";
@@ -350,8 +370,8 @@ int main(int argc, const char *argv[])
                waiting++;
                sendmqtt(t, strlen(v), v);
                if (!quiet)
-                  fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], res->current_row[n], topic, value[n]);
-               if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(res->current_row[n], "0"))
+                  fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], fetch(n), topic, value[n]);
+               if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(fetch(n), "0"))
                {                // Special case for rules
                   fprintf(stderr, "Enabling %s\n", name[n]);
                   waiting++;
@@ -359,23 +379,33 @@ int main(int argc, const char *argv[])
                }
                free(t);
             }
+         }
          catchup();
          for (int n = 0; n < fields; n++)
-            if (value[n] && strcmp(value[n] ? : "0", ((v = res->current_row[n]) && *v) ? v : "0"))
-               warnx("Failed to store %s as %s on %s (is %s)", name[n], res->current_row[n], topic, value[n]);
+            if (value[n] && strcmp(value[n] ? : "0", ((v = fetch(n)) && *v) ? v : "0"))
+               warnx("Failed to store %s as %s on %s (is %s)", name[n], fetch(n), topic, value[n]);
       }
+      if (sql_back_s(&s) == ',')
+      {
+         sql_sprintf(&s, " WHERE `Topic`=%#s", sql_colz(res, "Topic"));
+         sql_safe_query_s(&sql, &s);
+      } else
+         sql_free_s(&s);
       // Tidy
       fields = 0;
       for (int n = 0; n < res->field_count; n++)
          free(value[n]);
       free(value);
       free(name);
+      if (baseres)
+         sql_free_result(baseres);
    }
 
    void configtopic(void) {
       SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
       if (!sql_fetch_row(res))
       {
+         int hasbase = sql_colnum(res, "_base");
          sql_free_result(res);
          if (!backup)
          {
@@ -383,7 +413,11 @@ int main(int argc, const char *argv[])
             return;
          }
          warnx("Creating new device in database: %s", topic);
-         sql_safe_query_free(&sql, sql_printf("INSERT INTO `%#S` SET `Topic`=%#s", sqltable, topic));
+         sql_string_t s = { };
+         sql_sprintf(&s, "INSERT INTO `%#S` SET `Topic`=%#s", sqltable, topic);
+         if (base && hasbase >= 0)
+            sql_sprintf(&s, ",`_base`=%#s", base);
+         sql_safe_query_s(&sql, &s);
          res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
          if (!sql_fetch_row(res))
             errx(1, "create failed");
