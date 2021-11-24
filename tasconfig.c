@@ -301,9 +301,22 @@ int main(int argc, const char *argv[])
          return waiting;
       }
       const char *fetch(int n) {
-         const char *v = NULL;
+         char *v = NULL;
          if (baseres && strcasecmp(name[n], "Topic"))
+         {
             v = baseres->current_row[n];
+            if (v && *v == '$' && v[1] == '{')
+            {
+               char *l = strdupa(v);
+               l += 2;
+               char *q = strchr(l, '}');
+               if (q)
+               {
+                  *q++ = 0;
+                  asprintf(&v, "%s%s", sql_colz(res, l), q);
+               }
+            }
+         }
          if (!v)
             v = res->current_row[n];
          return v;
