@@ -192,6 +192,7 @@ CREATE TABLE `device` (
   `TimeStd` tinytext DEFAULT NULL,
   `TimeDst` tinytext DEFAULT NULL,
   `TelePeriod` int(11) DEFAULT NULL,
+  `Timers` enum('OFF','ON') DEFAULT NULL,
   `Timer1` tinytext DEFAULT NULL,
   `Timer2` tinytext DEFAULT NULL,
   `Timer3` tinytext DEFAULT NULL,
@@ -221,4 +222,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-24 13:51:05
+-- Dump completed on 2021-11-24 19:50:40
