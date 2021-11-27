@@ -184,7 +184,7 @@ int main(int argc, const char *argv[])
          {
             if (!strcasecmp(val, "off"))
                val = "0";
-            if (!strcasecmp(val, "on"))
+            else if (!strcasecmp(val, "on"))
                val = "1";
          } else if (j_isobject(j) && (!strcasecmp(tag, "TimeStd") || !strcasecmp(tag, "TimeDst")))
          {                      // Comma separated list of numbers from object
@@ -371,9 +371,10 @@ int main(int argc, const char *argv[])
          const char *v;
          for (int n = 0; n < fields; n++)
          {
-            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
-               sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
-            if (value[n] && strcmp(value[n] ? : "0", ((v = fetch(n)) && *v) ? v : "0"))
+            v = fetch(n);
+            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(v ? : "0", res->current_row[n] ? : "0"))
+               sql_sprintf(&s, "`%#S`=%#s,", name[n], v);
+            if (value[n] && strcmp(value[n] ? : "0", (v && *v) ? v : "0"))
             {
                if (!v || !*v)
                   v = "0";
