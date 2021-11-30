@@ -40,6 +40,7 @@ CREATE TABLE `device` (
   `Rule1` tinytext DEFAULT NULL COMMENT 'Rules',
   `Rule2` tinytext DEFAULT NULL COMMENT 'Rules',
   `Rule3` tinytext DEFAULT NULL COMMENT 'Rules',
+  `PowerOnState` int(1) DEFAULT NULL,
   `SwitchMode1` int(2) DEFAULT NULL COMMENT 'Switch mode code',
   `SwitchText1` tinytext DEFAULT NULL COMMENT 'Switch text',
   `PulseTime1` int(11) DEFAULT NULL COMMENT 'Switch pulse time',
@@ -222,4 +223,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-11-27  8:57:58
+-- Dump completed on 2021-11-30 12:51:56

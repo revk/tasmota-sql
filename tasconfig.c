@@ -249,7 +249,7 @@ int main(int argc, const char *argv[])
 
    void config(SQL_RES * res) { // Configure a devices
       if (!base)
-         base = sql_col(res, "_base");
+         base = strdup(sql_col(res, "_base"));
       SQL_RES *baseres = NULL;
       if (base)
       {
