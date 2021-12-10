@@ -296,8 +296,6 @@ int main(int argc, const char *argv[])
             last = waiting;
             usleep(100000);
          }
-         if (waiting)
-            warnx("Missing data from %s (%d)", topic, waiting);
          return waiting;
       }
       const char *fetch(int n) {
@@ -366,7 +364,10 @@ int main(int argc, const char *argv[])
                if (!quiet && fetch(n))
                   fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
             }
-      } else
+      }
+      if (waiting)
+         warnx("Missing data from %s (%d)", topic, waiting);
+      else
       {                         // Update device on changes
          const char *v;
          for (int n = 0; n < fields; n++)
