@@ -247,7 +247,7 @@ int main(int argc, const char *argv[])
          errx(1, "MQTT publish failed %s", mosquitto_strerror(e));
    }
 
-   void config(SQL_RES * res) { // Configure a devices
+   void config(SQL_RES * res, int backup) {     // Configure a devices
       if (!base)
          base = strdup(sql_col(res, "_base"));
       SQL_RES *baseres = NULL;
@@ -364,10 +364,7 @@ int main(int argc, const char *argv[])
                if (!quiet && fetch(n))
                   fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
             }
-      }
-      if (waiting)
-         warnx("Missing data from %s (%d)", topic, waiting);
-      else
+      } else
       {                         // Update device on changes
          const char *v;
          for (int n = 0; n < fields; n++)
@@ -400,6 +397,8 @@ int main(int argc, const char *argv[])
             if (value[n] && strcmp(value[n] ? : "0", ((v = fetch(n)) && *v) ? v : "0"))
                warnx("Failed to store %s as %s on %s (is %s)", name[n], fetch(n), topic, value[n]);
       }
+      if (waiting)
+         warnx("Missing data from %s (%d)", topic, waiting);
       if (sql_back_s(&s) == ',')
       {
          sql_sprintf(&s, " WHERE `Topic`=%#s", sql_colz(res, "Topic"));
@@ -416,7 +415,7 @@ int main(int argc, const char *argv[])
          sql_free_result(baseres);
    }
 
-   void configtopic(void) {
+   void configtopic(int backup) {
       SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
       if (!sql_fetch_row(res))
       {
@@ -437,7 +436,7 @@ int main(int argc, const char *argv[])
          if (!sql_fetch_row(res))
             errx(1, "create failed");
       }
-      config(res);
+      config(res, backup);
       sql_free_result(res);
    }
 
@@ -450,14 +449,20 @@ int main(int argc, const char *argv[])
          struct found_s *f = found;
          found = f->next;
          topic = f->topic;
-         configtopic();
+         configtopic(backup);
+         if (!waiting && backup && base)
+            configtopic(0);
          free(f->topic);
          free(f);
       }
    }
    {                            // Args
       while ((topic = poptGetArg(optCon)))
-         configtopic();
+      {
+         configtopic(backup);
+         if (!waiting && backup && base)
+            configtopic(0);
+      }
    }
    // Tidy up
    mosquitto_loop_stop(mqtt, 1);
