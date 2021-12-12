@@ -72,6 +72,7 @@ int main(int argc, const char *argv[])
    const char *topic = NULL;    // Current device topic
    int fields = 0;              // Number of fields
    int waiting = 0;             // Number of fields we are waiting for
+   int changed = 0;             // Changed
    char **name = NULL;          // Set of fields names
    char **value = NULL;         // Set of (malloc'd) found values
 
@@ -362,7 +363,10 @@ int main(int argc, const char *argv[])
             {
                sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
                if (!quiet && fetch(n))
+               {
                   fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
+                  changed = 1;
+               }
             }
       } else
       {                         // Update device on changes
@@ -449,7 +453,13 @@ int main(int argc, const char *argv[])
          struct found_s *f = found;
          found = f->next;
          topic = f->topic;
+         changed = 0;
          configtopic(backup);
+         if (waiting)
+         {
+            sleep(1);
+            configtopic(backup);
+         }
          if (!waiting && backup && base)
             configtopic(0);
          free(f->topic);
@@ -459,8 +469,14 @@ int main(int argc, const char *argv[])
    {                            // Args
       while ((topic = poptGetArg(optCon)))
       {
+         changed = 0;
          configtopic(backup);
-         if (!waiting && backup && base)
+         if (waiting)
+         {
+            sleep(1);
+            configtopic(backup);
+         }
+         if (!waiting && backup && base && changed)
             configtopic(0);
       }
    }
