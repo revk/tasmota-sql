@@ -460,7 +460,7 @@ int main(int argc, const char *argv[])
             sleep(1);
             configtopic(backup);
          }
-         if (!waiting && backup && base)
+         if (!waiting && backup && base && changed)
             configtopic(0);
          free(f->topic);
          free(f);
