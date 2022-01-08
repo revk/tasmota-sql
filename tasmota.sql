@@ -25,6 +25,7 @@ DROP TABLE IF EXISTS `device`;
 CREATE TABLE `device` (
   `Topic` varchar(100) NOT NULL COMMENT 'The main device topic, unique key for this table',
   `_base` varchar(100) DEFAULT NULL,
+  `OtaUrl` tinytext DEFAULT NULL,
   `MqttHost` tinytext DEFAULT NULL COMMENT 'MQTT Hostname',
   `SSId1` tinytext DEFAULT NULL COMMENT 'SSID',
   `SSId2` tinytext DEFAULT NULL COMMENT 'SSID',
@@ -89,6 +90,9 @@ CREATE TABLE `device` (
   `BlinkTime` int(11) DEFAULT NULL COMMENT 'Blink Time',
   `BlinkCount` int(11) DEFAULT NULL COMMENT 'Blink Count',
   `WebLog` int(1) DEFAULT NULL COMMENT 'Web logging',
+  `WattRes` int(1) DEFAULT NULL,
+  `VoltRes` int(1) DEFAULT NULL,
+  `AmpRes` int(1) DEFAULT NULL,
   `SetOption0` int(1) DEFAULT NULL COMMENT 'Save power state and use after restart',
   `SetOption1` int(1) DEFAULT NULL COMMENT 'Restrict multipress options',
   `SetOption3` int(1) DEFAULT NULL COMMENT 'Enable MQTT',
@@ -213,6 +217,27 @@ CREATE TABLE `device` (
   PRIMARY KEY (`Topic`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `power`
+--
+
+DROP TABLE IF EXISTS `power`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `power` (
+  `device` varchar(30) NOT NULL,
+  `n` int(11) DEFAULT NULL,
+  `ts` datetime NOT NULL,
+  `prev` datetime DEFAULT NULL,
+  `wh` decimal(10,3) DEFAULT NULL,
+  `w` decimal(10,3) DEFAULT NULL,
+  `voltage` decimal(10,3) DEFAULT NULL,
+  `current` decimal(10,3) DEFAULT NULL,
+  `factor` decimal(10,3) DEFAULT NULL,
+  UNIQUE KEY `device` (`device`,`n`,`ts`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+/*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -223,4 +248,4 @@ CREATE TABLE `device` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2021-12-15 13:06:03
+-- Dump completed on 2022-01-08 11:31:32
