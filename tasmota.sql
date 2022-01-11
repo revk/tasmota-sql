@@ -227,15 +227,15 @@ DROP TABLE IF EXISTS `power`;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `power` (
   `device` varchar(30) NOT NULL,
-  `n` int(11) DEFAULT NULL,
   `ts` datetime NOT NULL,
   `prev` datetime DEFAULT NULL,
   `wh` decimal(10,3) DEFAULT NULL,
   `w` decimal(10,3) DEFAULT NULL,
+  `power` decimal(10,3) DEFAULT NULL,
   `voltage` decimal(10,3) DEFAULT NULL,
   `current` decimal(10,3) DEFAULT NULL,
   `factor` decimal(10,3) DEFAULT NULL,
-  UNIQUE KEY `device` (`device`,`n`,`ts`)
+  UNIQUE KEY `device` (`device`,`ts`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -248,4 +248,4 @@ CREATE TABLE `power` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-01-08 11:31:32
+-- Dump completed on 2022-01-11 12:27:14
