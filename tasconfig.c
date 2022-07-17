@@ -34,6 +34,7 @@ int main(int argc, const char *argv[])
    int all = 0;
    int quiet = 0;
    int backup = 0;
+   int fast = 0;
 
    poptContext optCon;          // context for parsing command-line options
    const struct poptOption optionsTable[] = {
@@ -52,6 +53,7 @@ int main(int argc, const char *argv[])
       { "base", 0, POPT_ARG_STRING, &base, 0, "Base settings", "topic" },
       { "quiet", 'q', POPT_ARG_NONE, &quiet, 0, "Don't show progress", NULL },
       { "backup", 'b', POPT_ARG_NONE, &backup, 0, "Backup device", NULL },
+      { "fast", 'f', POPT_ARG_NONE, &fast, 0, "fast status check", NULL },
       { "all", 'a', POPT_ARG_NONE, &all, 0, "All devices", NULL },
       POPT_AUTOHELP { }
    };
@@ -330,6 +332,8 @@ int main(int argc, const char *argv[])
             v = res->current_row[n];
          return v;
       }
+      if(!fast)
+      {
       int count = 0;
       for (int n = 0; n < fields; n++)
          if (*name[n] != '_' && (strncmp(name[n], "GroupTopic", 10) || name[n][10] == '1') && (strncmp(name[n], "GPIO", 4) || name[n][4] == '0') && (!setting || !strcasecmp(name[n], setting)) && (fetch(n) || backup))
@@ -362,6 +366,7 @@ int main(int argc, const char *argv[])
       }
       free(t);
 #endif
+      }
       sql_string_t s = { };
       sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
       if (base && sql_colnum(res, "_base") >= 0 && strcmp(base, sql_colz(res, "_base")))
@@ -375,10 +380,10 @@ int main(int argc, const char *argv[])
             const char *where;
          } status[] = {
             { "_Version", "StatusFWR.Version" },        //
-            { "_Hardware", "StatusFWR.Hardware" },        //
-	    { "_Booted","StatusPRM.StartupUTC"}, //
-	    { "_Mac","StatusNET.Mac"}, //
-	    { "_IPAddress","StatusNET.IPAddress"}, //
+            { "_Hardware", "StatusFWR.Hardware" },      //
+            { "_Booted", "StatusPRM.StartupUTC" },      //
+            { "_Mac", "StatusNET.Mac" },        //
+            { "_IPAddress", "StatusNET.IPAddress" },    //
          };
          for (int q = 0; q < sizeof(status) / sizeof(*status); q++)
          {
@@ -391,53 +396,56 @@ int main(int argc, const char *argv[])
                warnx("No field %s", status[q].field);
          }
       }
-      if (backup)
-      {                         // Reading from device
-         for (int n = 0; n < fields; n++)
-            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
-            {
-               sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
-               if (!quiet && fetch(n))
+      if (!fast)
+      {
+         if (backup)
+         {                      // Reading from device
+            for (int n = 0; n < fields; n++)
+               if (value[n] && strcasecmp(name[n], "Topic") && strcmp(value[n] ? : "0", res->current_row[n] ? : "0"))
                {
-                  fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
-                  changed = 1;
+                  sql_sprintf(&s, "`%#S`=%#s,", name[n], value[n]);
+                  if (!quiet && fetch(n))
+                  {
+                     fprintf(stderr, "Storing %s as %s on %s\n", name[n], value[n], topic);
+                     changed = 1;
+                  }
                }
-            }
-      } else
-      {                         // Update device on changes
-         const char *v;
-         for (int n = 0; n < fields; n++)
-         {
-            v = fetch(n);
-            if (value[n] && strcasecmp(name[n], "Topic") && strcmp(v ? : "0", res->current_row[n] ? : "0"))
-               sql_sprintf(&s, "`%#S`=%#s,", name[n], v);
-            if (value[n] && strcmp(value[n] ? : "0", (v && *v) ? v : "0"))
+         } else
+         {                      // Update device on changes
+            const char *v;
+            for (int n = 0; n < fields; n++)
             {
-               if (!v || !*v)
-                  v = "0";
-               char *t;
-               if (asprintf(&t, "cmnd/%s/%s", fallbacktopic ? : topic, name[n]) < 0)
-                  errx(1, "malloc");
-               waiting++;
-               sendmqtt(t, strlen(v), v);
-               if (!quiet)
-                  fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], fetch(n), topic, value[n]);
-               if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(fetch(n), "0"))
-               {                // Special case for rules
-                  fprintf(stderr, "Enabling %s\n", name[n]);
+               v = fetch(n);
+               if (value[n] && strcasecmp(name[n], "Topic") && strcmp(v ? : "0", res->current_row[n] ? : "0"))
+                  sql_sprintf(&s, "`%#S`=%#s,", name[n], v);
+               if (value[n] && strcmp(value[n] ? : "0", (v && *v) ? v : "0"))
+               {
+                  if (!v || !*v)
+                     v = "0";
+                  char *t;
+                  if (asprintf(&t, "cmnd/%s/%s", fallbacktopic ? : topic, name[n]) < 0)
+                     errx(1, "malloc");
                   waiting++;
-                  sendmqtt(t, 1, "1");  // Set RuleN 1
+                  sendmqtt(t, strlen(v), v);
+                  if (!quiet)
+                     fprintf(stderr, "Setting %s to %s on %s (was %s)\n", name[n], fetch(n), topic, value[n]);
+                  if (!strncasecmp(name[n], "rule", 4) && isdigit(name[n][4]) && value[n] && strcmp(fetch(n), "0"))
+                  {             // Special case for rules
+                     fprintf(stderr, "Enabling %s\n", name[n]);
+                     waiting++;
+                     sendmqtt(t, 1, "1");       // Set RuleN 1
+                  }
+                  free(t);
                }
-               free(t);
             }
+            catchup();
+            for (int n = 0; n < fields; n++)
+               if (value[n] && strcmp(value[n] ? : "0", ((v = fetch(n)) && *v) ? v : "0"))
+                  warnx("Failed to store %s as %s on %s (is %s)", name[n], fetch(n), topic, value[n]);
          }
-         catchup();
-         for (int n = 0; n < fields; n++)
-            if (value[n] && strcmp(value[n] ? : "0", ((v = fetch(n)) && *v) ? v : "0"))
-               warnx("Failed to store %s as %s on %s (is %s)", name[n], fetch(n), topic, value[n]);
+         if (sqldebug)
+            warnx("Missing data from %s (%d)", topic, waiting);
       }
-      if (waiting)
-         warnx("Missing data from %s (%d)", topic, waiting);
       if (sql_back_s(&s) == ',')
       {
          sql_sprintf(&s, " WHERE `Topic`=%#s", sql_colz(res, "Topic"));
@@ -466,7 +474,7 @@ int main(int argc, const char *argv[])
       while (!status0 && retry--)
       {
          sendmqtt(t, 0, NULL);
-         int try = 10;
+         int try = 30;
          while (try-- && !status0)
             usleep(100000);
          if (!status0)
