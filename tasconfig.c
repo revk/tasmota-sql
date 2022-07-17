@@ -451,7 +451,6 @@ int main(int argc, const char *argv[])
       const char *v = NULL;
       if (status0 && (v = j_get(status0, "StatusMQT.MqttClient")) && asprintf(&fallbacktopic, "%s_fb", v) < 0)
          errx(1, "malloc");
-      warnx("fallback topic %s v=%p status0=%p", fallbacktopic, v, status0);
    }
 
    void configtopic(int backup) {
