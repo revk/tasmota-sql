@@ -70,6 +70,7 @@ int main(int argc, const char *argv[])
    }
    // As the response handling is all async, we use these as control variables.
    const char *topic = NULL;    // Current device topic
+   char *fallbacktopic = NULL;
    int fields = 0;              // Number of fields
    int waiting = 0;             // Number of fields we are waiting for
    int changed = 0;             // Changed
@@ -104,6 +105,7 @@ int main(int argc, const char *argv[])
       obj = obj;
       rc = rc;
    }
+   j_t status0 = NULL;
    struct found_s {
       struct found_s *next;
       char *topic;
@@ -129,13 +131,13 @@ int main(int argc, const char *argv[])
          }
          return;
       }
-      if (!fields || !topic)
-         return;                // We don't have a set of fields
+      if (!topic)
+         return;                // Uh
       if (strncmp(s, "stat/", 5))
          return;
       char *t = s + 5;
       char *d = strchr(t, '/');
-      if (!d || strcmp(d, "/RESULT") || d - t != strlen(topic) || strncmp(t, topic, d - t))
+      if (!d || (strcmp(d, "/STATUS0") && strcmp(d, "/RESULT")) || d - t != strlen(topic) || strncmp(t, topic, d - t))
          return;
       j_t data = j_create();
       const char *je = j_read_mem(data, (char *) msg->payload, msg->payloadlen);
@@ -144,6 +146,14 @@ int main(int argc, const char *argv[])
          j_delete(&data);
          return;
       }
+      if (!strcmp(d, "/STATUS0"))
+      {
+         j_delete(&status0);
+         status0 = data;
+         return;
+      }
+      if (!fields)
+         return;
       // Process data
       void process(j_t j) {     // Process a value
          const char *tag = j_name(j);
@@ -250,7 +260,7 @@ int main(int argc, const char *argv[])
 
    void config(SQL_RES * res, int backup) {     // Configure a devices
       if (!base)
-         base = strdup(sql_col(res, "_base")?:"");
+         base = strdup(sql_col(res, "_base") ? : "");
       SQL_RES *baseres = NULL;
       if (base)
       {
@@ -281,7 +291,7 @@ int main(int argc, const char *argv[])
       *bl = 0;
       char *t = NULL;
 #ifdef	BACKLOG
-      if (asprintf(&t, "cmnd/%s/Backlog0", topic) < 0)
+      if (asprintf(&t, "cmnd/%s/Backlog0", fallbacktopic ? : topic) < 0)
          errx(1, "malloc");
 #endif
 
@@ -338,7 +348,7 @@ int main(int argc, const char *argv[])
 #else
             if (waiting > 10)
                usleep(50000);
-            asprintf(&t, "cmnd/%s/%s", topic, name[n]);
+            asprintf(&t, "cmnd/%s/%s", fallbacktopic ? : topic, name[n]);
             sendmqtt(t, 0, NULL);
 #endif
             waiting++;
@@ -381,7 +391,7 @@ int main(int argc, const char *argv[])
                if (!v || !*v)
                   v = "0";
                char *t;
-               if (asprintf(&t, "cmnd/%s/%s", topic, name[n]) < 0)
+               if (asprintf(&t, "cmnd/%s/%s", fallbacktopic ? : topic, name[n]) < 0)
                   errx(1, "malloc");
                waiting++;
                sendmqtt(t, strlen(v), v);
@@ -419,6 +429,31 @@ int main(int argc, const char *argv[])
          sql_free_result(baseres);
    }
 
+   void newdevice(void) {
+      changed = 0;
+      free(fallbacktopic);
+      fallbacktopic = NULL;
+      j_delete(&status0);
+      char *t;
+      if (asprintf(&t, "cmnd/%s/status0", topic) < 0)
+         errx(1, "malloc");
+      int retry = 3;
+      while (!status0 && retry--)
+      {
+         sendmqtt(t, 0, NULL);
+         int try = 10;
+         while (try-- && !status0)
+            usleep(100000);
+         if (!status0)
+            warnx("Failed to respond: %s", topic);
+      }
+      free(t);
+      const char *v = NULL;
+      if (status0 && (v = j_get(status0, "StatusMQT.MqttClient")) && asprintf(&fallbacktopic, "%s_fb", v) < 0)
+         errx(1, "malloc");
+      warnx("fallback topic %s v=%p status0=%p", fallbacktopic, v, status0);
+   }
+
    void configtopic(int backup) {
       SQL_RES *res = sql_safe_query_store_free(&sql, sql_printf("SELECT * FROM `%#S` WHERE `Topic`=%#s", sqltable, topic));
       if (!sql_fetch_row(res))
@@ -453,7 +488,7 @@ int main(int argc, const char *argv[])
          struct found_s *f = found;
          found = f->next;
          topic = f->topic;
-         changed = 0;
+         newdevice();
          configtopic(backup);
          if (waiting)
          {
@@ -469,7 +504,7 @@ int main(int argc, const char *argv[])
    {                            // Args
       while ((topic = poptGetArg(optCon)))
       {
-         changed = 0;
+         newdevice();
          configtopic(backup);
          if (waiting)
          {
