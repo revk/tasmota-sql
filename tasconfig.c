@@ -366,6 +366,31 @@ int main(int argc, const char *argv[])
       sql_sprintf(&s, "UPDATE `%#S` SET ", sqltable);
       if (base && sql_colnum(res, "_base") >= 0 && strcmp(base, sql_colz(res, "_base")))
          sql_sprintf(&s, "`_base`=%#s,", base);
+      if (status0)
+      {
+         const char *v;
+         int n;
+         const struct {
+            const char *field;
+            const char *where;
+         } status[] = {
+            { "_Version", "StatusFWR.Version" },        //
+            { "_Hardware", "StatusFWR.Hardware" },        //
+	    { "_Booted","StatusPRM.StartupUTC"}, //
+	    { "_Mac","StatusNET.Mac"}, //
+	    { "_IPAddress","StatusNET.IPAddress"}, //
+         };
+         for (int q = 0; q < sizeof(status) / sizeof(*status); q++)
+         {
+            if ((n = sql_colnum(res, status[q].field)) >= 0 && (v = j_get(status0, status[q].where)) && strcmp(v, res->current_row[n] ? : ""))
+            {
+               sql_sprintf(&s, "`%#S`=%#s,", status[q].field, v);
+               if (!quiet)
+                  fprintf(stderr, "Storing %s as %s on %s was %s\n", status[q].field, v, topic, res->current_row[n]);
+            } else if (n < 0 && !quiet)
+               warnx("No field %s", status[q].field);
+         }
+      }
       if (backup)
       {                         // Reading from device
          for (int n = 0; n < fields; n++)

@@ -25,6 +25,11 @@ DROP TABLE IF EXISTS `device`;
 CREATE TABLE `device` (
   `Topic` varchar(100) NOT NULL COMMENT 'The main device topic, unique key for this table',
   `_base` varchar(100) DEFAULT NULL,
+  `_Booted` text DEFAULT NULL,
+  `_Version` text DEFAULT NULL,
+  `_Hardware` text DEFAULT NULL,
+  `_Mac` text DEFAULT NULL,
+  `_IPAddress` text DEFAULT NULL,
   `OtaUrl` tinytext DEFAULT NULL,
   `MqttHost` tinytext DEFAULT NULL COMMENT 'MQTT Hostname',
   `SSId1` tinytext DEFAULT NULL COMMENT 'SSID',
@@ -248,4 +253,4 @@ CREATE TABLE `power` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-07-17 15:02:42
+-- Dump completed on 2022-07-17 15:33:28
