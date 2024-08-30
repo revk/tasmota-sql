@@ -316,17 +316,22 @@ int main(int argc, const char *argv[])
          if (baseres && strcasecmp(name[n], "Topic"))
          {
             v = baseres->current_row[n];
-            if (v && *v == '$' && v[1] == '{')
+	    if(v)
+	    {
+	    int p=0;
+	    while(v[p]&&v[p]!='$')p++;
+            if (v[p] == '$' && v[p+1] == '{')
             {
-               char *l = strdupa(v);
+               char *l = strdupa(v+p);
                l += 2;
                char *q = strchr(l, '}');
                if (q)
                {
                   *q++ = 0;
-                  asprintf(&v, "%s%s", sql_colz(res, l), q);
+                  asprintf(&v, "%.*s%s%s",p,v, sql_colz(res, l), q);
                }
             }
+	    }
          }
          if (!v)
             v = res->current_row[n];

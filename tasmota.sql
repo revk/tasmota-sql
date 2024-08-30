@@ -1,8 +1,8 @@
--- MariaDB dump 10.19  Distrib 10.5.15-MariaDB, for debian-linux-gnu (x86_64)
+-- MariaDB dump 10.19  Distrib 10.11.4-MariaDB, for debian-linux-gnu (x86_64)
 --
 -- Host: localhost    Database: tasmota
 -- ------------------------------------------------------
--- Server version	10.5.15-MariaDB-0+deb11u1
+-- Server version	10.11.4-MariaDB-1~deb12u1
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -43,9 +43,9 @@ CREATE TABLE `device` (
   `GroupTopic2` tinytext DEFAULT NULL COMMENT 'Group topic',
   `GroupTopic3` tinytext DEFAULT NULL COMMENT 'Group topic',
   `GroupTopic4` tinytext DEFAULT NULL COMMENT 'Group topic',
-  `Rule1` tinytext DEFAULT NULL COMMENT 'Rules',
-  `Rule2` tinytext DEFAULT NULL COMMENT 'Rules',
-  `Rule3` tinytext DEFAULT NULL COMMENT 'Rules',
+  `Rule1` text DEFAULT NULL,
+  `Rule2` text DEFAULT NULL,
+  `Rule3` text DEFAULT NULL,
   `PowerOnState` int(1) DEFAULT NULL,
   `SwitchMode1` int(2) DEFAULT NULL COMMENT 'Switch mode code',
   `SwitchText1` tinytext DEFAULT NULL COMMENT 'Switch text',
@@ -220,7 +220,7 @@ CREATE TABLE `device` (
   `Timer15` tinytext DEFAULT NULL,
   `Timer16` tinytext DEFAULT NULL,
   PRIMARY KEY (`Topic`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -240,8 +240,9 @@ CREATE TABLE `power` (
   `voltage` decimal(10,3) DEFAULT NULL,
   `current` decimal(10,3) DEFAULT NULL,
   `factor` decimal(10,3) DEFAULT NULL,
-  UNIQUE KEY `device` (`device`,`ts`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  UNIQUE KEY `device` (`device`,`ts`),
+  KEY `ts` (`ts`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
@@ -253,4 +254,4 @@ CREATE TABLE `power` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2022-07-17 15:46:13
+-- Dump completed on 2024-01-26 12:55:17

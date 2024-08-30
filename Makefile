@@ -6,7 +6,9 @@ pull:
 	git submodule update --recursive
 
 update:
-	git submodule update --init --remote --merge
+	-git pull
+	-git commit -a
+	git submodule update --init --recursive --remote
 	git commit -a -m "Library update"
 
 SQLlib/sqllib.o: SQLlib/sqllib.c
