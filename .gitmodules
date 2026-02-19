@@ -3,7 +3,7 @@
 	url = https://codeberg.org/RevK/SQLlib
 [submodule "AJL"]
 	path = AJL
-	url = https://codeberg.org/RevK/AJK
+	url = https://codeberg.org/RevK/AJL
 [submodule "login"]
 	path = login
 	url = https://github.com/revk/login
