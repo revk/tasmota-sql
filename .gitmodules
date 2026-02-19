@@ -9,4 +9,4 @@
 	url = https://github.com/revk/login
 [submodule "email"]
 	path = email
-	url = https://github.com/revk/email
+	url = https://codeberg.org/RevK/email
